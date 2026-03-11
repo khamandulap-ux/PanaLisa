@@ -1167,7 +1167,7 @@
         </div>
 
         <div class="form-card">
-          <form class="contact-form" action="https://formsubmit.co/pandadesigns.agency@gmail.com" method="POST">
+          <form id="contactForm" class="contact-form" action="https://formsubmit.co/pandadesigns.agency@gmail.com" method="POST">
             <input type="hidden" name="_subject" value="New Pana Lisa Website Enquiry">
             <input type="hidden" name="_captcha" value="false">
             <input type="hidden" name="_template" value="table">
@@ -1274,6 +1274,27 @@
     window.addEventListener('resize', updateActiveNav);
     window.addEventListener('load', updateActiveNav);
     updateActiveNav();
+
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+      contactForm.addEventListener('submit', () => {
+        const name = contactForm.querySelector('#name')?.value?.trim() || '';
+        const businessName = contactForm.querySelector('#business_name')?.value?.trim() || '';
+        const email = contactForm.querySelector('#email')?.value?.trim() || '';
+        const message = contactForm.querySelector('#message')?.value?.trim() || '';
+
+        const whatsappMessage = [
+          'Hi Pana Lisa, I just sent a website enquiry.',
+          `Name: ${name}`,
+          `Business: ${businessName}`,
+          `Email: ${email}`,
+          `Message: ${message}`
+        ].join('\n');
+
+        const whatsappUrl = `https://wa.me/27816126346?text=${encodeURIComponent(whatsappMessage)}`;
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      });
+    }
   </script>
 </body>
 </html>
