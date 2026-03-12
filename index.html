@@ -1608,12 +1608,8 @@
       });
     }
 
-    const initialReviews = [
-      { name: 'Lerato M.', rating: 5, text: 'Pana Lisa transformed our Instagram presence. Our page now looks polished and we are getting more enquiries every week.' },
-      { name: 'Jason R.', rating: 5, text: 'Professional, fast, and strategic. They understood our brand and made social media simple for our team.' },
-      { name: 'Nokuthula P.', rating: 4, text: 'Great quality posts and reliable support. We finally have consistency in our content plan.' },
-      { name: 'Aisha K.', rating: 5, text: 'Amazing experience from start to finish. Their communication and creativity stood out immediately.' }
-    ];
+    const REVIEWS_STORAGE_KEY = 'panaLisaReviews';
+    const initialReviews = [];
 
     const reviewsGrid = document.getElementById('reviewsGrid');
     const overallStars = document.getElementById('overallStars');
@@ -1629,7 +1625,50 @@
     const reviewRating = document.getElementById('reviewRating');
     const starSelector = document.getElementById('starSelector');
 
-    const reviews = [...initialReviews];
+    const sanitizeReviews = (items) => {
+      if (!Array.isArray(items)) return [];
+
+      return items
+        .map((item) => {
+          const name = String(item?.name || '').trim();
+          const text = String(item?.text || '').trim();
+          const rating = Number(item?.rating || 0);
+
+          if (!name || !text || rating < 1 || rating > 5) {
+            return null;
+          }
+
+          return {
+            name,
+            text,
+            rating: Math.round(rating)
+          };
+        })
+        .filter(Boolean);
+    };
+
+    const loadStoredReviews = () => {
+      try {
+        const saved = localStorage.getItem(REVIEWS_STORAGE_KEY);
+        if (!saved) return [...initialReviews];
+
+        const parsed = JSON.parse(saved);
+        const validReviews = sanitizeReviews(parsed);
+        return validReviews.length ? validReviews : [...initialReviews];
+      } catch (error) {
+        return [...initialReviews];
+      }
+    };
+
+    const saveReviews = (items) => {
+      try {
+        localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(sanitizeReviews(items)));
+      } catch (error) {
+        // Ignore storage errors and keep reviews available for the current session.
+      }
+    };
+
+    const reviews = loadStoredReviews();
 
     const renderStars = (rating) => {
       const clampedRating = Math.max(0, Math.min(5, Number(rating) || 0));
@@ -1642,22 +1681,52 @@
     const renderReviews = () => {
       if (!reviewsGrid) return;
       reviewsGrid.innerHTML = '';
+
+      if (!reviews.length) {
+        const emptyCard = document.createElement('article');
+        emptyCard.className = 'review-card';
+        const emptyTitle = document.createElement('h3');
+        emptyTitle.textContent = 'No reviews yet';
+        const emptyText = document.createElement('p');
+        emptyText.textContent = 'Be the first to share your experience.';
+        emptyCard.append(emptyTitle, emptyText);
+        reviewsGrid.appendChild(emptyCard);
+        return;
+      }
+
       reviews.forEach((review, index) => {
         const card = document.createElement('article');
         card.className = 'review-card';
         if (index === 0) card.classList.add('new-review');
 
-        card.innerHTML = `
-          <div class="review-stars" aria-label="${review.rating.toFixed(1)} out of 5 stars">${renderStars(review.rating)}</div>
-          <h3>${review.name}</h3>
-          <p>${review.text}</p>
-        `;
+        const stars = document.createElement('div');
+        stars.className = 'review-stars';
+        stars.setAttribute('aria-label', `${review.rating.toFixed(1)} out of 5 stars`);
+        stars.innerHTML = renderStars(review.rating);
+
+        const name = document.createElement('h3');
+        name.textContent = review.name;
+
+        const text = document.createElement('p');
+        text.textContent = review.text;
+
+        card.append(stars, name, text);
         reviewsGrid.appendChild(card);
       });
     };
 
     const updateSummary = () => {
-      if (!reviews.length) return;
+      if (!reviews.length) {
+        if (overallStars) {
+          overallStars.innerHTML = renderStars(0);
+          overallStars.setAttribute('aria-label', '0.0 out of 5 stars');
+        }
+        if (overallRatingText) overallRatingText.textContent = '0.0/5';
+        if (reviewsCountText) reviewsCountText.textContent = 'Based on 0 reviews';
+        if (ratingBarFill) ratingBarFill.style.width = '0%';
+        return;
+      }
+
       const total = reviews.reduce((sum, review) => sum + review.rating, 0);
       const avg = total / reviews.length;
       const avgText = avg.toFixed(1);
@@ -1725,6 +1794,7 @@
       }
 
       reviews.unshift({ name, text, rating });
+      saveReviews(reviews);
       renderReviews();
       updateSummary();
       closeModal();
