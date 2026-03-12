@@ -1761,7 +1761,15 @@
       });
     }
 
-    const REVIEWS_API_ENDPOINT = '/api/reviews';
+    const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const REVIEWS_TABLE_ENDPOINT = `${SUPABASE_URL}/rest/v1/reviews`;
+
+    const getSupabaseHeaders = (extraHeaders = {}) => ({
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      ...extraHeaders
+    });
 
     const reviewsGrid = document.getElementById('reviewsGrid');
     const overallStars = document.getElementById('overallStars');
@@ -1783,7 +1791,7 @@
       const name = String(item?.name || '').trim();
       const text = String(item?.text || '').trim();
       const rating = Math.round(Number(item?.rating || 0));
-      const timestamp = String(item?.timestamp || '').trim();
+      const timestamp = String(item?.timestamp || item?.created_at || '').trim();
 
       if (!name || !text || rating < 1 || rating > 5) {
         return null;
@@ -1816,23 +1824,29 @@
     };
 
     const fetchReviews = async () => {
-      const response = await fetch(REVIEWS_API_ENDPOINT, { headers: { Accept: 'application/json' } });
+      const response = await fetch(
+        `${REVIEWS_TABLE_ENDPOINT}?select=id,name,text,rating,created_at&order=created_at.desc`,
+        {
+          headers: getSupabaseHeaders({ Accept: 'application/json' })
+        }
+      );
       if (!response.ok) {
         throw new Error('Unable to load reviews');
       }
 
       const payload = await response.json();
-      return normalizeReviews(payload?.reviews || []);
+      return normalizeReviews(payload);
     };
 
     const submitReview = async (review) => {
-      const response = await fetch(REVIEWS_API_ENDPOINT, {
+      const response = await fetch(REVIEWS_TABLE_ENDPOINT, {
         method: 'POST',
-        headers: {
+        headers: getSupabaseHeaders({
           'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        body: JSON.stringify(review)
+          Accept: 'application/json',
+          Prefer: 'return=representation'
+        }),
+        body: JSON.stringify([{ ...review }])
       });
 
       if (!response.ok) {
@@ -1840,7 +1854,7 @@
       }
 
       const payload = await response.json();
-      return normalizeReview(payload?.review);
+      return normalizeReview(payload?.[0]);
     };
 
     const renderStars = (rating) => {
